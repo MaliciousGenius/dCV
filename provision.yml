@@ -1,30 +1,31 @@
 ---
 
 - hosts: all
-#  become: yes
-
-  pre_tasks:
-    - name: Верификация имени хоста
-      shell: hostnamectl status | awk "/Static hostname/"'{ print $3 }'
-      register: hostname_fqdn
+  remote_user: vagrant
 
   tasks:
-    - debug:
-        msg: "{{ hostname_fqdn.stdout }}"
-
-    - name: Обновление БД менеджера пакетов
-      pacman:
-        update_cache: yes
-        upgrade: yes
-
     - name: Установка пакетов
+      become: true
       pacman:
         name: "{{ item }}"
+        state: present
       with_items:
-        - git
         - docker
         - docker-compose
-        - virtualbox
+        - git
+
+    - name: Старт сервиса docker
+      become: true
+      service:
+        name: "docker"
+        enabled: yes
+
+    - name: Добавить пользователя vagrant а группу docker
+      become: true
+      user:
+        name: vagrant
+        groups: docker
+        append: yes
 
     - name: Получение исходников dCV-container
       git:
