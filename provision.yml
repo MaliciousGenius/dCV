@@ -1,0 +1,33 @@
+---
+
+- hosts: all
+#  become: yes
+
+  pre_tasks:
+    - name: Верификация имени хоста
+      shell: hostnamectl status | awk "/Static hostname/"'{ print $3 }'
+      register: hostname_fqdn
+
+  tasks:
+    - debug:
+        msg: "{{ hostname_fqdn.stdout }}"
+
+    - name: Обновление БД менеджера пакетов
+      pacman:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Установка пакетов
+      pacman:
+        name: "{{ item }}"
+      with_items:
+        - git
+        - docker
+        - docker-compose
+        - virtualbox
+
+    - name: Получение исходников dCV-container
+      git:
+        clone: yes
+        repo: "https://github.com/MaliciousGenius/dCV-container.git"
+        dest: "{{ user_home }}/dCV-container"
