@@ -1,34 +1,61 @@
 ---
 
 - hosts: all
-  remote_user: vagrant
+  become: true
+  gather_facts: no
+
+  pre_tasks:
+    - name: Install python
+      raw: sudo apt-get update && sudo apt-get install -y python-minimal
 
   tasks:
-    - name: Установка пакетов
-      become: true
-      pacman:
-        name: "{{ item }}"
+    - name: Install apt-transport-https
+      apt:
+        pkg: apt-transport-https
         state: present
-      with_items:
-        - docker
-        - docker-compose
-        - git
 
-    - name: Старт сервиса docker
-      become: true
+    - name: Install ca-certificates
+      apt:
+        pkg: ca-certificates
+        state: present
+
+    - name: Install software-properties-common
+      apt:
+        pkg: software-properties-common
+        state: present
+
+    - name: Ensure that we have the Docker repository key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        id: 0EBFCD88
+        state: present
+
+    - name: Ensure that we have the docker repository
+      apt_repository:
+        repo: "deb https://download.docker.com/linux/ubuntu xenial stable"
+
+    - name: Ensure that the docker package is installed
+      apt:
+        pkg: docker-ce
+        state: present
+
+    - name: Restart Docker service
       service:
-        name: "docker"
+        name: docker
+        state: started
         enabled: yes
 
-    - name: Добавить пользователя vagrant а группу docker
-      become: true
+    - name: Add user vagrant in group docker
       user:
         name: vagrant
         groups: docker
         append: yes
 
-    - name: Получение исходников dCV-container
-      git:
-        clone: yes
-        repo: "https://github.com/MaliciousGenius/dCV-container.git"
-        dest: "{{ user_home }}/dCV-container"
+    - name: Clone web-stream-cv
+      shell: "cd /home/vagrant && git clone https://github.com/MaliciousGenius/web-stream-cv.git"
+
+    - name: Build web-stream-cv
+      shell: "cd /home/vagrant/web-stream-cv && docker build -t web-stream-cv ."
+
+    - name: Run web-stream-cv
+      shell: "docker run -d -p 8000:8000 web-stream-cv"
